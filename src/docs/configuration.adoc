@@ -301,6 +301,9 @@ Default to `true`.
 ==== `elasticSearch.index.name`
 A string indicating which ElasticSearch index should be used.  If not present, will default to the package name of the domain in question.
 
+==== `elasticSearch.index.policy`
+A string overriding the default ElasticSearch index naming strategy. If set to 'class', will default to the package name + package name of the domain in question - i.e. one index per domain class.
+
 ==== `elasticSearch.index.compound_format`
 
 Should the compound file format be used (boolean setting).

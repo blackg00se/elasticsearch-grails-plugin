@@ -89,6 +89,16 @@ class SearchableClassMapping implements ElasticSearchConfigAware {
             // index name must be lowercase (org.elasticsearch.indices.InvalidIndexNameException)
             name = domainClass.getPropertyName()
         }
+
+        // default index naming policy is based on the package name.
+        // if the policy is set to 'class' also append the name of the domain class.
+        // this gives an index per domain class.
+        //
+        if (! esConfig?.getProperty('index.name')
+                && (esConfig?.getProperty('index.policy') == 'class')
+                && domainClass.name) {
+            name += ("." + domainClass.name)
+        }
         return name.toLowerCase()
     }
 
