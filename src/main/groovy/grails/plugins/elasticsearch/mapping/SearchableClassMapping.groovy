@@ -16,6 +16,9 @@
 
 package grails.plugins.elasticsearch.mapping
 
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import grails.core.GrailsApplication
 import grails.plugins.elasticsearch.util.ElasticSearchConfigAware
 import grails.plugins.elasticsearch.util.IndexNamingUtils
@@ -26,6 +29,8 @@ import groovy.transform.CompileStatic
 
 @CompileStatic
 class SearchableClassMapping implements ElasticSearchConfigAware {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(this)
 
     /** All searchable properties */
     private Collection<SearchableClassPropertyMapping> propertiesMapping
@@ -82,23 +87,30 @@ class SearchableClassMapping implements ElasticSearchConfigAware {
             scpm.validate(contextHolder)
         }
     }
+    
+    private static Map<String, Object> _indexDefaults
+    
+    private Map<String, Object> getEsIndexConfig() {
+        if (_indexDefaults) return _indexDefaults
+        if (esConfig != null) {
+            Map<String, Object> indexDefaults = esConfig.get("index") as Map<String, Object>
+            LOG.debug("indexDefaults=" + indexDefaults)
+            if (indexDefaults)
+                return (_indexDefaults = indexDefaults)
+        }
+        return [:] as Map<String, Object>
+    }
 
     String calculateIndexName() {
-        String name = esConfig?.getProperty('index.name') ?: domainClass.packageName
+        String indexName = esIndexConfig.get('name')
+        String indexPolicy = esIndexConfig.get('policy')
+        LOG.debug("calculateIndexName: indexName=" + indexName + ", indexPolicy=" + indexPolicy)
+        String name = (indexName ?: ((indexPolicy == 'class') ? domainClass.fullName : domainClass.packageName))
         if (name == null || name.length() == 0) {
             // index name must be lowercase (org.elasticsearch.indices.InvalidIndexNameException)
             name = domainClass.getPropertyName()
         }
-
-        // default index naming policy is based on the package name.
-        // if the policy is set to 'class' also append the name of the domain class.
-        // this gives an index per domain class.
-        //
-        if (! esConfig?.getProperty('index.name')
-                && (esConfig?.getProperty('index.policy') == 'class')
-                && domainClass.name) {
-            name += ("." + domainClass.name)
-        }
+        LOG.debug("calculateIndexName: index name=" + name.toLowerCase())
         return name.toLowerCase()
     }
 

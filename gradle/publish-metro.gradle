@@ -1,0 +1,41 @@
+apply plugin:"org.grails.grails-plugin-publish"
+apply plugin:"net.researchgate.release"
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+
+        }
+    }
+
+    repositories {
+        maven {
+            String repo = version.endsWith('SNAPSHOT') ? 'snapshots' : 'internal'
+            url "http://intranet/archiva/repository/$repo/"
+        }
+    }
+}
+// ensure local publications mirror remote ones..
+publish.dependsOn publishToMavenLocal
+// make sure we clean before building a release..
+beforeReleaseBuild.dependsOn clean
+// publish releases to Maven repo..
+afterReleaseBuild.dependsOn publish
+
+grailsPublish {
+    //user = 'user'
+    //key = 'key'
+    //githubSlug = 'foo/bar'
+    websiteUrl = "http://www.metropolis.net.au"
+    vcsUrl = "ssh://newcaesar/git/elasticsearch-grails-plugin/repo/origin.git"
+    issueTrackerUrl = 
+    license {
+        name = 'Unpublished Proprietary Property of Metropolis Metering Services'
+    }
+    title = "ElasticSearch Grails Plugin"
+    desc = "Malarkey"
+    developers = [glenm:"Glen McCallum"]
+    //portalUser = ""
+    //portalPassword = ""    
+}
+

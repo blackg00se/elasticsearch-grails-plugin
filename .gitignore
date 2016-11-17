@@ -30,3 +30,4 @@ data/
 
 #Elasticserch plugin binaries
 src/integration-test/resources/elasticsearch/plugins
+/bin/

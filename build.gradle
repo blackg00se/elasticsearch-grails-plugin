@@ -10,6 +10,7 @@ buildscript {
         classpath "org.grails:grails-gradle-plugin:$grailsVersion"
 		classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
 		classpath 'org.ajoberstar:gradle-git:1.4.2'
+        classpath 'net.researchgate:gradle-release:2.4.0'
     }
 }
 
@@ -109,7 +110,8 @@ task cleanDataDir(type: Delete) {
 
 apply from: "gradle/documentation.gradle"
 
-apply from: "gradle/publish.gradle"
+//apply from: "gradle/publish.gradle"
+apply from: "gradle/publish-metro.gradle"
 
 
 
