@@ -2,7 +2,7 @@ package grails.plugins.elasticsearch.mapping
 
 import grails.core.GrailsApplication
 import grails.plugins.elasticsearch.ElasticSearchContextHolder
-import grails.test.mixin.integration.Integration
+import grails.testing.mixin.integration.Integration
 import org.springframework.beans.factory.annotation.Autowired
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -19,9 +19,12 @@ import test.transients.Palette
 @Integration
 class ElasticSearchMappingFactorySpec extends Specification {
 
-    @Autowired GrailsApplication grailsApplication
-    @Autowired SearchableClassMappingConfigurator searchableClassMappingConfigurator
-    @Autowired ElasticSearchContextHolder elasticSearchContextHolder
+    @Autowired
+    GrailsApplication grailsApplication
+    @Autowired
+    SearchableClassMappingConfigurator searchableClassMappingConfigurator
+    @Autowired
+    ElasticSearchContextHolder elasticSearchContextHolder
 
     void setup() {
         grailsApplication.config.elasticSearch.includeTransients = true
@@ -48,7 +51,7 @@ class ElasticSearchMappingFactorySpec extends Specification {
         where:
         clazz    | property          || expectedType
 
-        Building | 'name'            || 'string'
+        Building | 'name'            || 'text'
         Building | 'date'            || 'date'
         Building | 'location'        || 'geo_point'
 
@@ -57,14 +60,14 @@ class ElasticSearchMappingFactorySpec extends Specification {
 
         Catalog  | 'pages'           || 'object'
 
-        Person   | 'fullName'        || 'string'
-        Person   | 'nickNames'       || 'string'
+        Person   | 'fullName'        || 'text'
+        Person   | 'nickNames'       || 'text'
 
-        Palette  | 'colors'          || 'string'
-        Palette  | 'complementaries' || 'string'
+        Palette  | 'colors'          || 'text'
+        Palette  | 'complementaries' || 'text'
 
-        Anagram | 'length'           || 'integer'
-        Anagram | 'palindrome'       || 'boolean'
+        Anagram  | 'length'          || 'integer'
+        Anagram  | 'palindrome'      || 'boolean'
     }
 }
 //['string', 'integer', 'long', 'float', 'double', 'boolean', 'null', 'date']

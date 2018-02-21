@@ -1,0 +1,4 @@
+[[faq]]
+== Frequently Asked Questions
+
+include::faq/conflictingModules.adoc[]

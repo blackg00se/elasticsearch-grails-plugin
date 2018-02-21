@@ -15,10 +15,13 @@
  */
 package grails.plugins.elasticsearch.index
 
+import groovy.transform.CompileStatic
+
 /**
  * @author Noam Y. Tenne
  */
-class IndexEntityKey implements Serializable {
+@CompileStatic
+class IndexEntityKey implements Serializable, Comparable {
     /**
      * stringified id.
      */
@@ -34,7 +37,7 @@ class IndexEntityKey implements Serializable {
         if (is(o)) return true
         if (getClass() != o.getClass()) return false
 
-        IndexEntityKey that = o
+        IndexEntityKey that = (IndexEntityKey) o
 
         if (clazz != that.clazz) return false
         if (id != that.id) return false
@@ -53,4 +56,11 @@ class IndexEntityKey implements Serializable {
     String toString() {
         "IndexEntityKey{id=$id, clazz=$clazz}"
     }
+
+    @Override
+    public int compareTo(Object o) {
+        IndexEntityKey that = (IndexEntityKey) o
+        return (clazz.name <=> that.clazz.name ?: id <=> that.id)
+    }
+
 }

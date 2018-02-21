@@ -1,10 +1,23 @@
 language: groovy
 jdk:
 - oraclejdk8
+before_install:
+- cat /etc/hosts
+- sudo hostname "$(hostname | cut -c1-63)"
+- sed -e "s/^\\(127\\.0\\.0\\.1.*\\)/\\1 $(hostname | cut -c1-63)/" /etc/hosts | sudo
+  tee /etc/hosts
+- cat /etc/hosts
 before_script:
 - rm -rf target
 script: travis_wait 60 ./travis-build.sh
 env:
   global:
   - GIT_NAME="Puneet Behl"
-  - GIT_EMAIL="puneetbehl@yahoo.com"
+  - GIT_EMAIL="behl4485@gmail.com"
+  - secure: vbvHW1V+fqTKZNRHO1Znq+H7IMvqtuPRlIR6FotxxJVOYp3Yr9ajcDpUny2ylF+6pfD0Dv6o3SC725ZaGooquq5yu//daNJYch/sx28FooZx6PVo2/kvNLR5c+cErgfUEaPQP1ATVUDaHeg+38eKeM5MTvvQ+q0NEZFyu0mbIPM=
+  - secure: FnPmwyPUTnP/yAUfRbX/6ipQDXPgo9DCjPXphqqG9pdxUP6G3udF+SPEaRR/V9Dr/WAWe9i5MeYBY5lEkvOrbd1D6LbiOb6YgFRQQz2ncG3/pfZZiNDYn67xAGQWbT0YoZTB3LZU+rGjfG9WR7K+xix/h8U3xc9fUtifrxsrEbk=
+  - secure: RNV9NVnwEnou+BuVtssjNuxmmiBf9St2kBB7Vrpv3MvWSls6nLpMOMwGxzY0fIoda93HzrbwsjtxSczTVu+neeV/1vQZV6uOho9UN315RmtjVwKehkfEaXuKKIR9yQ4DXeFK20EIdNHY2ftfzSFFu3DBCaq9bqb1COZvONSuQts=
+  - secure: D94v4Pt/7f29OXTU3pWdDodmeHBQE5Gb09iSejyKP7zXe2+cr8VaAQKckgkjh+2tMp4dqJ3fgWc/bNOzTmZhxLFvq7OGAPk//B574uXin4N85kaK11nmU2nmeFwjxp5ohMV2/eTcafhf3akZfNUX8g6NbijBhFTVlw6eWje2QVQ=
+  - secure: tJWQoe+yGPcqW2zfl+ktgGqiPln6Xl3FlA7EFkJwOPdRya7Kvwl1CddTYuKyR/raW+RFLBzs6pOr41fDY70Nu2VT3UjPy7UmCDw8wnTMfran1V8zv6Nn6TmUWzKanR60+BU9+H04VrsAUOpP16id0Wvo1oRO71UG40GDkmeF44A=
+  - secure: bnivN4eoIpo14mDoyGPXkTgAbJf64wRiuyhwXnI4/E2KcfnjweONjx4blWMxLxTGl5rAi/MByScr1kzg/e6VvFhleE0Bz4BLXSTolGVE5DnKwTqD/ZcIsVHV63el/hiQfhqQWeFQ2KSrBzI4Qn1aRpoO4YCQkmyTugXV7ZSSOwQ=
+  - secure: V6enEbEvQHao8GkAvzmQ/xmACvwKofQ0vGauG9/f4vg6vqIZCi1iH63a1G10r0RMNrQprCWUd42tAzfswAY3QtVNRU6pMoq0Evz6APKzo1CX09vPUqs98RAnstk6ntsUocelLLY+5OEfVp7vAxIMrbk1HstPUOU6yve7i0EN7TY=

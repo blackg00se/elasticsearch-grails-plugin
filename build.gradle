@@ -1,6 +1,11 @@
+import de.undercouch.gradle.tasks.download.Download
+
 buildscript {
     ext {
         grailsVersion = project.grailsVersion
+        gormVersion = project.gormVersion
+        elasticsearchVersion = project.elasticsearchVersion
+        elasticsearchAttachmentsVersion = project.elasticsearchAttachmentsVersion
     }
     repositories {
         mavenLocal()
@@ -8,30 +13,33 @@ buildscript {
     }
     dependencies {
         classpath "org.grails:grails-gradle-plugin:$grailsVersion"
-		classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
-		classpath 'org.ajoberstar:gradle-git:1.4.2'
-        classpath 'net.researchgate:gradle-release:2.4.0'
+        classpath 'org.asciidoctor:asciidoctor-gradle-plugin:1.5.3'
+        classpath 'org.ajoberstar:gradle-git:1.4.2'
+        classpath "org.grails.plugins:hibernate5:${gormVersion-".RELEASE"}"
+                classpath 'net.researchgate:gradle-release:2.4.0'
     }
 }
 
 plugins {
     id "com.jfrog.bintray" version "1.2"
+    id 'com.jfrog.artifactory' version '4.0.0'
+    id "de.undercouch.download" version "3.2.0"
 }
 
-version "1.2.1-metro"
+version "2.4.0-metro"
 group "org.grails.plugins"
 
-apply plugin: 'maven-publish'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: "org.grails.grails-plugin"
-apply plugin:"org.grails.grails-plugin-publish"
+apply plugin: "org.grails.grails-plugin-publish"
 apply plugin: "org.grails.grails-gsp"
+apply plugin: 'maven-publish'
 
 ext {
-    grailsVersion = project.grailsVersion
     gradleWrapperVersion = project.gradleWrapperVersion
-	elasticsearchVersion = "2.3.3"
+    elasticsearchVersion = project.elasticsearchVersion
+    elasticsearchAttachmentsVersion = project.elasticsearchAttachmentsVersion
 }
 
 sourceCompatibility = 1.7
@@ -51,7 +59,7 @@ dependencyManagement {
 }
 
 jar {
-	exclude "test/**"
+    exclude "test/**"
     exclude "test/**/**"
 }
 
@@ -65,7 +73,10 @@ sourcesJar {
     exclude "test/**/**"
 }
 
-def elasticsearchVersion = '2.3.3'
+def pluginExcludes = [
+    "test/**",
+    "test/**/**",
+]
 
 dependencies {
     provided 'org.springframework.boot:spring-boot-starter-logging'
@@ -75,21 +86,63 @@ dependencies {
     provided "org.grails:grails-web-boot"
     provided "org.grails:grails-dependencies"
 
+    provided "org.grails:grails-plugin-services"
+    provided "org.grails:grails-plugin-domain-class"
+
     compile "org.grails:grails-core"
-    compile "org.grails.plugins:hibernate4"
+    compile "org.grails.plugins:hibernate5"
     compile "org.grails.plugins:cache"
-    compile "org.hibernate:hibernate-ehcache"
+    compile "org.hibernate:hibernate-core:$hibernateVersion"
+    compile "org.hibernate:hibernate-ehcache:$hibernateVersion"
+    //compile "org.hibernate:hibernate-ehcache"
+
+    compile "org.apache.logging.log4j:log4j-api:2.7"
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.7'
 
     compile "org.elasticsearch:elasticsearch:${elasticsearchVersion}"
-
-    testRuntime 'com.spatial4j:spatial4j:0.4.1'
-    testCompile 'com.vividsolutions:jts:1.13'
-    testCompile 'com.googlecode.json-simple:json-simple:1.1.1'
-    testCompile "org.grails:grails-plugin-testing"
+    compile group: 'org.elasticsearch.client', name: 'transport', version: elasticsearchVersion
 
     console "org.grails:grails-console"
 
-    compile "org.elasticsearch.plugin:mapper-attachments:${elasticsearchVersion}"
+    profile "org.grails.profiles:web-plugin"
+
+    testRuntime 'com.spatial4j:spatial4j:0.4.1'
+    testRuntime 'org.apache.tomcat:tomcat-jdbc'
+
+    testCompile "org.grails:grails-gorm-testing-support"
+    testCompile "org.grails:grails-plugin-testing"
+    testCompile "org.grails:grails-web-testing-support"
+
+    testCompile 'com.vividsolutions:jts:1.13'
+    testCompile 'com.googlecode.json-simple:json-simple:1.1.1'
+
+    //compile "org.elasticsearch.plugin:mapper-attachments:${elasticsearchAttachmentsVersion}"
+    compile fileTree(dir: "libs/elasticsearch", include: '*.jar')
+}
+
+task downloadAttachmentsPlugin(type: Download) {
+    src "https://artifacts.elastic.co/downloads/elasticsearch-plugins/mapper-attachments/mapper-attachments-${elasticsearchVersion}.zip"
+    dest "libs/mapper-attachments-${elasticsearchVersion}.zip"
+    overwrite true
+    onlyIfNewer true
+}
+
+task downloadAndUnzipAttachmentsPlugin(dependsOn: downloadAttachmentsPlugin) {
+    doLast {
+        copy {
+            from zipTree(downloadAttachmentsPlugin.dest)
+            into 'libs/'
+        }
+        delete 'libs/elasticsearch/commons-codec-1.10.jar'
+    }
+}
+
+compileJava{
+    dependsOn downloadAndUnzipAttachmentsPlugin
+}
+
+task cleanLibsDir(type: Delete) {
+    delete fileTree(dir: 'libs')
 }
 
 task wrapper(type: Wrapper) {
@@ -102,11 +155,19 @@ check.doLast {
 
 clean.doLast {
     cleanDataDir.execute()
+    cleanLibsDir.execute()
 }
 
 task cleanDataDir(type: Delete) {
     delete fileTree(dir: 'data')
 }
+
+bootRun {
+    jvmArgs('-Dspring.output.ansi.enabled=always')
+    addResources = true
+}
+// enable if you wish to package this plugin as a standalone application
+bootRepackage.enabled = false
 
 apply from: "gradle/documentation.gradle"
 

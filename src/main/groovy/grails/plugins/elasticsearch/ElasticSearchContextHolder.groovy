@@ -1,8 +1,9 @@
 package grails.plugins.elasticsearch
 
-import grails.core.GrailsDomainClass
+import grails.plugins.elasticsearch.mapping.DomainEntity
 import grails.plugins.elasticsearch.mapping.SearchableClassMapping
 import groovy.transform.CompileStatic
+import org.hibernate.proxy.HibernateProxy
 
 @CompileStatic
 class ElasticSearchContextHolder {
@@ -44,8 +45,8 @@ class ElasticSearchContextHolder {
      * @param domainClass
      * @return
      */
-    SearchableClassMapping getMappingContext(GrailsDomainClass domainClass) {
-        mapping[domainClass.fullName]
+    SearchableClassMapping getMappingContext(DomainEntity domainClass) {
+        getMappingContextByType(domainClass.type)
     }
 
     /**
@@ -55,7 +56,10 @@ class ElasticSearchContextHolder {
      * @return
      */
     SearchableClassMapping getMappingContextByType(Class clazz) {
-        mapping.values().find { scm -> scm.domainClass.clazz == clazz }
+        if(clazz in HibernateProxy) {
+            clazz = clazz.superclass
+        }
+        mapping.values().find { scm -> scm.domainClass.type == clazz }
     }
 
     /**
@@ -65,7 +69,10 @@ class ElasticSearchContextHolder {
      * @return A boolean determining if the class is root-mapped or not
      */
     boolean isRootClass(Class clazz) {
-        mapping.values().any { scm -> scm.domainClass.clazz == clazz && scm.isRoot() }
+        if(clazz in HibernateProxy) {
+            clazz = clazz.superclass
+        }
+        mapping.values().any { scm -> scm.domainClass.type == clazz && scm.isRoot() }
     }
 
     /**
@@ -75,7 +82,7 @@ class ElasticSearchContextHolder {
      * @return A Class instance or NULL if the class was not found
      */
     Class findMappedClassByElasticType(String elasticTypeName) {
-        findMappingContextByElasticType(elasticTypeName)?.domainClass?.clazz
+        findMappingContextByElasticType(elasticTypeName)?.domainClass?.type
     }
 
     /**
@@ -87,7 +94,7 @@ class ElasticSearchContextHolder {
     List<Class> findMappedClassesOnIndices(Set<String> indices) {
         mapping.values().findAll { SearchableClassMapping scm ->
             scm.indexName in indices
-        }*.domainClass*.clazz as List<Class>
+        }*.domainClass*.type as List<Class>
     }
 
     /**

@@ -1,32 +1,23 @@
 File bintrayProperties = project.rootProject.file('bintray.properties')
 if (bintrayProperties.exists()) {
-  Properties properties = new Properties()
-  properties.load(bintrayProperties.newDataInputStream())
+    Properties properties = new Properties()
+    properties.load(bintrayProperties.newDataInputStream())
 
-  ext {
-    bintrayUsername = properties.bintrayUsername
-    bintrayApiKey = properties.bintrayApiKey
-  }
+    ext {
+        bintrayUsername = properties.bintrayUsername
+        bintrayApiKey = properties.bintrayApiKey
+    }
+}
 
-  grailsPublish {
+grailsPublish {
     githubSlug = 'noamt/elasticsearch-grails-plugin'
     license {
         name = 'Apache-2.0'
     }
     title = "Elasticserach"
+    //rep = "grails-plugins"
     desc = "An Elasticsearch plugin for Grails"
-    developers = [noam: 'Noam Y. Tenne', marcos: 'Marcos Carceles', puneet: 'Puneet Behl', james: 'James Kleeh']
-  }
-} else {
-    grailsPublish {
-    githubSlug = 'noamt/elasticsearch-grails-plugin'
-    license {
-        name = 'Apache-2.0'
-    }
-    title = "Elasticserach"
-    desc = "An Elasticsearch plugin for Grails"
-    developers = [noam: 'Noam Y. Tenne', marcos: 'Marcos Carceles', puneet: 'Puneet Behl', james: 'James Kleeh']
-  }
+    developers = [noam: 'Noam Y. Tenne', macrcos: 'Marcos Carceles', puneet: 'Puneet Behl', james: 'James Kleeh']
 }
 
 // Publish gh-pages on github
@@ -34,26 +25,26 @@ apply plugin: "org.ajoberstar.github-pages"
 
 File githubProperties = project.rootProject.file('github.properties')
 if (githubProperties.exists()) {
-  Properties properties = new Properties()
-  properties.load(githubProperties.newDataInputStream())
+    Properties properties = new Properties()
+    properties.load(githubProperties.newDataInputStream())
 
-  ext {
-    githubApiKey = properties.githubApiKey
-  }
-
-  githubPages {
-    repoUri = 'https://github.com/noamt/elasticsearch-grails-plugin.git'
-
-    credentials {
-      username = project.hasProperty('githubApiKey') ? project.githubApiKey : ''
-      password = ''
+    ext {
+        githubApiKey = properties.githubApiKey
     }
 
-    pages {
-      from "${buildDir}/docs"
-    }
-  }
+    githubPages {
+        repoUri = 'https://github.com/noamt/elasticsearch-grails-plugin.git'
 
-  task publishDocs(dependsOn: [docs, publishGhPages]) << {
-  }
+        credentials {
+            username = project.hasProperty('githubApiKey') ? project.githubApiKey : ''
+            password = ''
+        }
+
+        pages {
+            from "${buildDir}/docs"
+        }
+    }
+
+    task publishDocs(dependsOn: [docs, publishGhPages]) << {
+    }
 }

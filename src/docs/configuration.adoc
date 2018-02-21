@@ -13,6 +13,138 @@ def elasticsearchVersion = '2.3.3'
 ext['elasticsearch.version'] = elasticsearchVersion
 ----
 
+=== Default configuration script
+
+Below is the default configuration loaded by the plugin (any of your settings in the Config.groovy script overwrite those).
+
+[source, groovy]
+.Config.groovy
+----
+elasticSearch {
+  /**
+   * Date formats used by the unmarshaller of the JSON responses
+   */
+  date.formats = ["yyyy-MM-dd'T'HH:mm:ss'Z'"]
+
+  /**
+   * Hosts for remote ElasticSearch instances.
+   * Will only be used with the "transport" client mode.
+   * If the client mode is set to "transport" and no hosts are defined, ["localhost", 9300] will be used by default.
+   */
+  client.hosts = [
+          [host:'localhost', port:9300]
+  ]
+
+  /**
+   * Default mapping property exclusions
+   *
+   * No properties matching the given names will be mapped by default
+   * i.e., when using "searchable = true"
+   *
+   * This does not apply for classes using mapping by closure
+   */
+  defaultExcludedProperties = ["password"]
+
+  /**
+   * Determines if the plugin should reflect any database save/update/delete automatically
+   * on the ES instance. Default to false.
+   */
+  disableAutoIndex = false
+
+  /**
+   * Should the database be indexed at startup.
+   *
+   * The value may be a boolean true|false.
+   * Indexing is always asynchronous (compared to Searchable plugin) and executed after BootStrap.groovy.
+   */
+  bulkIndexOnStartup = true
+
+  /**
+   *  Max number of requests to process at once. Reduce this value if you have memory issue when indexing a big amount of data
+   *  at once. If this setting is not specified, 500 will be use by default.
+   */
+  maxBulkRequest = 500
+
+
+  /**
+   * The name of the ElasticSearch mapping configuration property that annotates domain classes. The default is 'searchable'.
+   */
+  searchableProperty.name = 'searchable'
+}
+
+environments {
+  development {
+    /**
+     * Possible values : "local", "node", "dataNode", "transport"
+     * If set to null, "node" mode is used by default.
+     */
+    elasticSearch.client.mode = 'local'
+  }
+  test {
+      elasticSearch {
+          client.mode = 'local'
+          index.store.type = 'memory' // store local node in memory and not on disk
+      }
+  }
+  production {
+    elasticSearch.client.mode = 'node'
+  }
+}
+----
+
+==== Grails 3.3.x Sample YAML configuration
+
+[source, yaml]
+.application.yml
+----
+elasticSearch:
+    date:
+        formats: ["yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"]
+    client.hosts:
+        - {host: localhost, port: 9300}
+    defaultExcludedProperties: ['password']
+    disableAutoIndex: false
+    index:
+        compound_format: true
+    unmarshallComponents: true
+    searchableProperty:
+        name: searchable
+    includeTransients: false
+environments:
+    development:
+        elasticSearch:
+            client:
+                mode: local
+                transport.sniff: true
+            bulkIndexOnStartup: true
+    test:
+        elasticSearch:
+            client:
+                mode: local
+                transport.sniff: true
+            datastoreImpl: hibernateDatastore
+            index:
+                store.type: memory
+                settings:
+                    analysis:
+                        filter:
+                            replace_synonyms:
+                                type: synonym
+                                synonyms: ['abc => xyz']
+                        analyzer:
+                            test_analyzer:
+                                tokenizer: standard
+                                filter: ['lowercase']
+                            repl_analyzer:
+                                tokenizer: standard
+                                filter: ['lowercase', 'replace_synonyms']
+
+    production:
+        elasticSearch:
+            client:
+                mode: node
+----
+
 === Client mode
 
 You can set the plugin in 3 different modes, detailed on the http://www.elasticsearch.org/guide/en/elasticsearch/client/java-api/current/[official ElasticSearch doc].
@@ -301,8 +433,10 @@ Default to `true`.
 ==== `elasticSearch.index.name`
 A string indicating which ElasticSearch index should be used.  If not present, will default to the package name of the domain in question.
 
-==== `elasticSearch.index.policy`
-A string overriding the default ElasticSearch index naming strategy. If set to 'class', will default to the package name + package name of the domain in question - i.e. one index per domain class.
+[NOTE]
+====
+From Elasticsearch 5.0 on only selected settings like for instance index.codec can be set on the node level. All other settings must be set on each individual index. To set default values on every index, index templates should be used instead. So, unset this value if you are using Elasticsearch v5.0 or above.
+====
 
 ==== `elasticSearch.index.compound_format`
 
@@ -334,7 +468,7 @@ More details on the possible values on the http://www.elasticsearch.org/guide/re
 
 |===
 
-==== `elasticSearch.index.numberOfReplicas`
+==== `elasticSearch.index.settings.numberOfReplicas`
 
 Sets the number of replicas created for each shard of the index. If not present, will default to zero.
 
@@ -370,138 +504,3 @@ Whether to index and search all non excluded transient properties. All explicitl
 ====
 Default is `false`.
 ====
-
-=== Default configuration script
-
-==== Grails 2.x
-
-Below is the default configuration loaded by the plugin (any of your settings in the Config.groovy script overwrite those).
-
-[source, groovy]
-.Config.groovy
-----
-elasticSearch {
-  /**
-   * Date formats used by the unmarshaller of the JSON responses
-   */
-  date.formats = ["yyyy-MM-dd'T'HH:mm:ss'Z'"]
-
-  /**
-   * Hosts for remote ElasticSearch instances.
-   * Will only be used with the "transport" client mode.
-   * If the client mode is set to "transport" and no hosts are defined, ["localhost", 9300] will be used by default.
-   */
-  client.hosts = [
-          [host:'localhost', port:9300]
-  ]
-
-  /**
-   * Default mapping property exclusions
-   *
-   * No properties matching the given names will be mapped by default
-   * i.e., when using "searchable = true"
-   *
-   * This does not apply for classes using mapping by closure
-   */
-  defaultExcludedProperties = ["password"]
-
-  /**
-   * Determines if the plugin should reflect any database save/update/delete automatically
-   * on the ES instance. Default to false.
-   */
-  disableAutoIndex = false
-
-  /**
-   * Should the database be indexed at startup.
-   *
-   * The value may be a boolean true|false.
-   * Indexing is always asynchronous (compared to Searchable plugin) and executed after BootStrap.groovy.
-   */
-  bulkIndexOnStartup = true
-
-  /**
-   *  Max number of requests to process at once. Reduce this value if you have memory issue when indexing a big amount of data
-   *  at once. If this setting is not specified, 500 will be use by default.
-   */
-  maxBulkRequest = 500
-
-
-  /**
-   * The name of the ElasticSearch mapping configuration property that annotates domain classes. The default is 'searchable'.
-   */
-  searchableProperty.name = 'searchable'
-}
-
-environments {
-  development {
-    /**
-     * Possible values : "local", "node", "dataNode", "transport"
-     * If set to null, "node" mode is used by default.
-     */
-    elasticSearch.client.mode = 'local'
-  }
-  test {
-      elasticSearch {
-          client.mode = 'local'
-          index.store.type = 'memory' // store local node in memory and not on disk
-      }
-  }
-  production {
-    elasticSearch.client.mode = 'node'
-  }
-}
-----
-
-==== Grails 3.x
-
-Below is the default configuration loaded by the plugin (any of your settings in the application.yml script overwrite those).
-
-[source, yaml]
-.application.yml
-----
-elasticSearch:
-    date:
-        formats: ["yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"]
-    client.hosts:
-        - {host: localhost, port: 9300}
-    defaultExcludedProperties: ['password']
-    disableAutoIndex: false
-    index:
-        compound_format: true
-    unmarshallComponents: true
-    searchableProperty:
-        name: searchable
-    includeTransients: false
-environments:
-    development:
-        elasticSearch:
-            client:
-                mode: local
-                transport.sniff: true
-            bulkIndexOnStartup: true
-    test:
-        elasticSearch:
-            client:
-                mode: local
-                transport.sniff: true
-            datastoreImpl: hibernateDatastore
-            index:
-                store.type: memory
-                analysis:
-                    filter:
-                        replace_synonyms:
-                            type: synonym
-                            synonyms: ['abc => xyz']
-                    analyzer:
-                        test_analyzer:
-                            tokenizer: standard
-                            filter: ['lowercase']
-                        repl_analyzer:
-                            tokenizer: standard
-                            filter: ['lowercase', 'replace_synonyms']
-
-    production:
-        elasticSearch:
-            client:
-                mode: node
-----

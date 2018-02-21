@@ -11,6 +11,10 @@ trait ElasticSearchConfigAware {
 
     abstract GrailsApplication getGrailsApplication()
 
+    ConfigObject getIndexSettings() {
+        (esConfig?.index as ConfigObject)?.settings as ConfigObject
+    }
+
     ConfigObject getEsConfig() {
         grailsApplication?.config?.elasticSearch as ConfigObject
     }

@@ -1,5 +1,5 @@
 = Elasticsearch Plugin - Reference Documentation
-Noam Y. Tenne
+Puneet Behl
 
 :elasticsearch: http://www.elasticsearch.org
 
@@ -18,3 +18,5 @@ include::admin.adoc[]
 include::lowLevelAPI.adoc[]
 
 include::example.adoc[]
+
+include::faq.adoc[]

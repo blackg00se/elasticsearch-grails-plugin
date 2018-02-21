@@ -15,21 +15,25 @@
  */
 package grails.plugins.elasticsearch.index
 
-import org.codehaus.groovy.runtime.InvokerHelper
-import org.elasticsearch.action.ActionListener
-import org.elasticsearch.action.bulk.BulkRequestBuilder
-import org.elasticsearch.action.bulk.BulkResponse
-import org.elasticsearch.client.Client
-import org.elasticsearch.common.xcontent.XContentBuilder
 import grails.plugins.elasticsearch.ElasticSearchContextHolder
 import grails.plugins.elasticsearch.conversion.JSONDomainFactory
 import grails.plugins.elasticsearch.exception.IndexException
 import grails.plugins.elasticsearch.mapping.SearchableClassMapping
+import org.codehaus.groovy.runtime.InvokerHelper
+import org.elasticsearch.action.ActionListener
+import org.elasticsearch.action.bulk.BulkItemResponse
+import org.elasticsearch.action.bulk.BulkRequestBuilder
+import org.elasticsearch.action.bulk.BulkResponse
+import org.elasticsearch.client.Client
+import org.elasticsearch.common.xcontent.XContentBuilder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.util.Assert
 
-import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentSkipListMap
+import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -53,14 +57,15 @@ class IndexRequestQueue {
     /**
      * A map containing the pending index requests.
      */
-    private Map<IndexEntityKey, Object> indexRequests = [:]
+    private ConcurrentHashMap<IndexEntityKey, Object> indexRequests = new ConcurrentHashMap<IndexEntityKey, Object>() // [:] //new ConcurrentSkipListMap()
+    //private Map<IndexEntityKey, Object> indexRequests = [:] //new ConcurrentSkipListMap()
 
     /**
      * A set containing the pending delete requests.
      */
-    private Set<IndexEntityKey> deleteRequests = []
+    private ConcurrentHashMap.KeySetView<IndexEntityKey,Boolean> deleteRequests = ConcurrentHashMap.newKeySet() // []
 
-    private ConcurrentLinkedDeque<OperationBatch> operationBatch = new ConcurrentLinkedDeque<OperationBatch>()
+    private ConcurrentLinkedQueue<OperationBatch> operationBatch = new ConcurrentLinkedQueue<OperationBatch>()
 
     void setJsonDomainFactory(JSONDomainFactory jsonDomainFactory) {
         this.jsonDomainFactory = jsonDomainFactory
@@ -82,7 +87,7 @@ class IndexRequestQueue {
         synchronized (this) {
             IndexEntityKey key = id == null ? indexEntityKeyFromInstance(instance) :
                     new IndexEntityKey(id.toString(), instance.getClass())
-            indexRequests.put(key, instance)
+            indexRequests.putIfAbsent(key, instance)
         }
     }
 
@@ -115,8 +120,8 @@ class IndexRequestQueue {
      *         if there were no operations done on the method call.
      */
     void executeRequests() {
-        Map<IndexEntityKey, Object> toIndex = [:]
-        Set<IndexEntityKey> toDelete = []
+        ConcurrentSkipListMap<IndexEntityKey, Object> toIndex = [:]
+        ConcurrentSkipListSet<IndexEntityKey> toDelete = []
 
         cleanOperationBatchList()
 
@@ -259,7 +264,7 @@ class IndexRequestQueue {
         }
 
         void onResponse(BulkResponse bulkResponse) {
-            bulkResponse.getItems().each {
+            bulkResponse.getItems().each { BulkItemResponse it ->
                 boolean removeFromQueue = !it.failed || it.failureMessage.contains('UnavailableShardsException')
                 // On shard failure, do not re-push.
                 if (removeFromQueue) {
@@ -287,7 +292,7 @@ class IndexRequestQueue {
             }
         }
 
-        void onFailure(Throwable e) {
+        void onFailure(Exception e) {
             // Everything failed. Re-push all.
             LOG.error('Bulk request failure', e)
             def remainingAttempts = attempts.getAndDecrement()
@@ -304,19 +309,14 @@ class IndexRequestQueue {
          */
         void push() {
             LOG.debug("Pushing retry: ${toIndex.size()} indexing, ${toDelete.size()} deletes.")
-            toIndex.each { key, value ->
+            toIndex.each { IndexEntityKey key, value ->
                 synchronized (this) {
-                    if (!indexRequests.containsKey(key)) {
-                        // Do not overwrite existing stuff in the queue.
-                        indexRequests.put(key, value)
-                    }
+                    indexRequests.putIfAbsent(key, value)
                 }
             }
             toDelete.each {
                 synchronized (this) {
-                    if (!deleteRequests.contains(it)) {
-                        deleteRequests.add(it)
-                    }
+                    deleteRequests.add(it)
                 }
             }
             executeRequests()

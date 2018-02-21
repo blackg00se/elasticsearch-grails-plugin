@@ -16,6 +16,8 @@
 package grails.plugins.elasticsearch.conversion.marshall
 
 import grails.plugins.elasticsearch.conversion.JSONDomainFactory
+import grails.plugins.elasticsearch.mapping.SearchableClassMapping
+
 
 class DefaultMarshallingContext {
     JSONDomainFactory parentFactory
@@ -40,6 +42,10 @@ class DefaultMarshallingContext {
         return true
     }
 
+    SearchableClassMapping findMappingContext(Class<?> clazz) {
+        parentFactory.elasticSearchContextHolder.getMappingContextByType(clazz)
+    }
+
     /**
      * Push object instance on top of the stack
      * with assigned maxDepth property.
@@ -47,7 +53,7 @@ class DefaultMarshallingContext {
      * @param maxDepth remained maxDepth
      */
     def push(instance, maxDepth) {
-        marshallStack.push(new MarshalledObject(instance:instance,maxDepth:maxDepth ?: this.maxDepth))
+        marshallStack.push(new MarshalledObject(instance: instance, maxDepth: maxDepth ?: this.maxDepth))
     }
 
     def pop() {

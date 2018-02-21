@@ -18,11 +18,14 @@ package grails.plugins.elasticsearch.conversion
 
 import grails.core.GrailsApplication
 import grails.plugins.elasticsearch.ElasticSearchContextHolder
-import org.grails.core.artefact.DomainClassArtefactHandler
-import grails.core.GrailsDomainClass
-import org.elasticsearch.common.xcontent.XContentBuilder
 import grails.plugins.elasticsearch.conversion.marshall.*
+import grails.plugins.elasticsearch.mapping.DomainEntity
+import grails.plugins.elasticsearch.mapping.DomainReflectionService
+import grails.plugins.elasticsearch.mapping.SearchableClassMapping
 import grails.plugins.elasticsearch.unwrap.DomainClassUnWrapperChain
+import org.elasticsearch.common.xcontent.XContentBuilder
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.beans.PropertyEditor
 
@@ -32,15 +35,18 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
  * Marshall objects as JSON.
  */
 class JSONDomainFactory {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(this)
 
     ElasticSearchContextHolder elasticSearchContextHolder
     GrailsApplication grailsApplication
     DomainClassUnWrapperChain domainClassUnWrapperChain
+    DomainReflectionService domainReflectionService
 
     /**
      * The default marshallers, not defined by user
      */
-    static DEFAULT_MARSHALLERS = [
+    static Map<Class<?>, Class<? extends DefaultMarshaller>> DEFAULT_MARSHALLERS = [
             (Map)       : MapMarshaller,
             (Collection): CollectionMarshaller
     ]
@@ -51,12 +57,13 @@ class JSONDomainFactory {
      * @param marshallingContext The marshalling context associate with the current marshalling process
      * @return Object The result of the marshall operation.
      */
-    def delegateMarshalling(object, marshallingContext, maxDepth = 0) {
+    Object delegateMarshalling(Object object, DefaultMarshallingContext marshallingContext, int maxDepth = 0) {
         if (object == null) {
             return null
         }
-        def marshaller
-        def objectClass = object.getClass()
+
+        DefaultMarshaller marshaller = null
+        Class<?> objectClass = object.getClass()
 
         // Resolve collections.
         // Check for direct marshaller matching
@@ -69,11 +76,10 @@ class JSONDomainFactory {
         }
 
         if (!marshaller) {
-
             // Check if we arrived from searchable domain class.
-            def parentObject = marshallingContext.peekDomainObject()
-            if (parentObject && marshallingContext.lastParentPropertyName && DomainClassArtefactHandler.isDomainClass(parentObject.getClass())) {
-                GrailsDomainClass domainClass = getDomainClass(parentObject)
+            Object parentObject = marshallingContext.peekDomainObject()
+            if (parentObject && marshallingContext.lastParentPropertyName && isDomainClass(parentObject.class)) {
+                DomainEntity domainClass = getUnwrappedInstanceDomainClass(parentObject)
                 def propertyMapping = elasticSearchContextHolder.getMappingContext(domainClass)?.getPropertyMapping(marshallingContext.lastParentPropertyName)
                 def converter = propertyMapping?.converter
                 // Property has converter information. Lets see how we can apply it.
@@ -102,8 +108,8 @@ class JSONDomainFactory {
         if (!marshaller) {
             // TODO : support user custom marshaller/converter (& marshaller registration)
             // Check for domain classes
-            if (DomainClassArtefactHandler.isDomainClass(objectClass)) {
-                def propertyMapping = elasticSearchContextHolder.getMappingContext(getDomainClass(marshallingContext.peekDomainObject()))?.getPropertyMapping(marshallingContext.lastParentPropertyName)
+            if (isDomainClass(objectClass)) {
+                def propertyMapping = elasticSearchContextHolder.getMappingContext(getUnwrappedInstanceDomainClass(marshallingContext.peekDomainObject()))?.getPropertyMapping(marshallingContext.lastParentPropertyName)
 
                 if (propertyMapping?.isGeoPoint()) {
                     marshaller = new GeoPointMarshaller()
@@ -130,28 +136,25 @@ class JSONDomainFactory {
         marshaller.marshall(object)
     }
 
-    private GrailsDomainClass getDomainClass(instance) {
-        def instanceClass = domainClassUnWrapperChain.unwrap(instance).class
-        grailsApplication.domainClasses.find { it.clazz == instanceClass }
-    }
-
     /**
      * Build an XContentBuilder representing a domain instance in JSON.
      * Use as a source to an index request to ElasticSearch.
      * @param instance A domain class instance.
      * @return
      */
-    XContentBuilder buildJSON(instance) {
-        def domainClass = getDomainClass(instance)
-        def json = jsonBuilder().startObject()
+    XContentBuilder buildJSON(Object instance) {
+        DomainEntity domainClass = getInstanceDomainClass(instance)
+        XContentBuilder json = jsonBuilder().startObject()
         // TODO : add maxDepth in custom mapping (only for "searchable components")
-        def scm = elasticSearchContextHolder.getMappingContext(domainClass)
-        def marshallingContext = new DefaultMarshallingContext(maxDepth: 5, parentFactory: this)
+        SearchableClassMapping scm = elasticSearchContextHolder.getMappingContext(domainClass)
+
+        DefaultMarshallingContext marshallingContext = new DefaultMarshallingContext(maxDepth: 5, parentFactory: this)
         marshallingContext.push(instance)
+
         // Build the json-formated map that will contain the data to index
         scm.propertiesMapping.each { scpm ->
             marshallingContext.lastParentPropertyName = scpm.propertyName
-            def res = delegateMarshalling(instance."${scpm.propertyName}", marshallingContext)
+            Object res = delegateMarshalling(instance."${scpm.propertyName}", marshallingContext)
             json.field(scpm.propertyName, res)
             // add the alias
             if (scpm.getAlias()) {
@@ -163,4 +166,37 @@ class JSONDomainFactory {
         json.close()
         json
     }
+
+    boolean isDomainClass(Class<?> clazz) {
+        domainReflectionService.isDomainEntity(clazz)
+    }
+
+    DomainEntity getInstanceDomainClass(Object instance) {
+        /*
+        DomainEntity rv = null
+        if (instance?.class?.name?.contains('$$')) {
+            LOG.info("instance.class.name=${instance?.class?.name}")
+            LOG.info("instance.id=${instance?.id}")
+            instance.properties.each {
+                k, v ->
+                LOG.info("instance.$k=$v, type=${v.class.name}")
+            }
+            Class<?> clazz = org.hibernate.proxy.HibernateProxyHelper.getClassWithoutInitializingProxy(instance)
+            LOG.info("clazz.name=${clazz?.name}")
+            Object instance2 = instance
+            LOG.info("instance2.class.name=${instance2?.class?.name}")
+            rv = domainReflectionService.getDomainEntity(instance2.class)
+        } else
+            rv = domainReflectionService.getDomainEntity(instance.class)
+        if (!rv) LOG.warn("getInstanceDomainClass returning null!")
+        return rv
+        */
+        //domainReflectionService.getDomainEntity(org.hibernate.proxy.HibernateProxyHelper.getClassWithoutInitializingProxy(instance))
+        domainReflectionService.getDomainEntity(instance)
+    }
+
+    DomainEntity getUnwrappedInstanceDomainClass(Object instance) {
+        getInstanceDomainClass(domainClassUnWrapperChain.unwrap(instance))
+    }
+
 }

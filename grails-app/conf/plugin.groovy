@@ -68,27 +68,27 @@ elasticSearch {
      */
     migration.disableAliasChange = false
 
-    index.numberOfReplicas = 0
+    index.settings.numberOfReplicas = 0
 
     /**
      * Whether to index and search all non excluded transient properties. All explicitly included transients in @only@ will be indexed regardless.
      */
     includeTransients = false
 
-	/**
-	* Disable dynamic method injection in domain class
-	*/
-	disableDynamicMethodsInjection = false
+    /**
+     * Disable dynamic method injection in domain class
+     */
+    disableDynamicMethodsInjection = false
 
-	/** 
-	* Search method name in domain class, defaults to search
-	*/
-	searchMethodName = "search"
+    /**
+     * Search method name in domain class, defaults to search
+     */
+    searchMethodName = "search"
 
-	/** 
-	* countHits method name in domain class, defaults to search
-	*/
-	countHitsMethodName = "countHits"
+    /**
+     * countHits method name in domain class, defaults to search
+     */
+    countHitsMethodName = "countHits"
 }
 
 environments {

@@ -1,0 +1,50 @@
+[[conflictingModules]]
+=== Conflicting module versions
+
+Normally this issues happen where different versions of same modules are download from different plugins or dependencies in `build.gradle`
+
+It seems like there are multiple versions of groovy in the classpath. Looks similar to http://stackoverflow.com/questions/31099214/tomcat-conflicting-module-versions-module-groovy-all-is-loaded-in-version-2-3
+
+#### Exception
+----
+ log4j:ERROR Error initializing log4j: null
+ java.lang.ExceptionInInitializerError
+    at org.codehaus.groovy.runtime.InvokerHelper.<clinit>(InvokerHelper.java:61)
+    at groovy.lang.GroovyObjectSupport.<init>(GroovyObjectSupport.java:32)
+    at org.codehaus.groovy.grails.commons.AbstractGrailsApplication.<init>(
+             AbstractGrailsApplication.java:45)
+    at org.codehaus.groovy.grails.commons.DefaultGrailsApplication.<init>
+            (DefaultGrailsApplication.java:95)
+    at org.codehaus.groovy.grails.commons.DefaultGrailsApplication.<init>
+            (DefaultGrailsApplication.java:91)
+    at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+    at sun.reflect.NativeConstructorAccessorImpl.newInstance(
+            NativeConstructorAccessorImpl.java:62)
+    at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(
+        DelegatingConstructorAccessorImpl.java:45)
+    at java.lang.reflect.Constructor.newInstance(Constructor.java:423)
+    at java.lang.Class.newInstance(Class.java:442)
+
+
+    at org.apache.tomcat.util.net.JIoEndpoint$SocketProcessor.run(JIoEndpoint.java:314)
+    at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+    at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+    at java.lang.Thread.run(Thread.java:745)
+ **Caused by: groovy.lang.GroovyRuntimeException: Conflicting module versions. Module [groovy-all is  loaded in version 2.3.11 and you are trying to load version 2.4.4**
+----
+
+#### Workaround
+
+----
+grails.project.dependency.resolution = {
+    plugins {
+        compile ":elasticsearch:0.0.4.5", { exclude "groovy-all" } // elasticsearch 1.6.0
+    }
+}
+----
+
+[[INFO]]
+====
+* Above problem was reported with plugin version 0.0.4.5 and Grails 2.5.5.
+====

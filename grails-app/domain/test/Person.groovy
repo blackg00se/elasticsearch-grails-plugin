@@ -16,14 +16,15 @@ class Person {
     }
 
     static transients = ['fullName']
-    static hasMany = [nickNames:String]
-    
+    static hasMany = [nickNames: String]
+
     static mapping = {
         autoImport(false)
     }
 
     static searchable = {
         root false
+        firstName fields: [raw: [type: 'keyword']]
     }
 
     static constraints = {

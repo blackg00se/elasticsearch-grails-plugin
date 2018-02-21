@@ -1,16 +1,26 @@
 package grails.plugins.elasticsearch.mapping
 
-import grails.core.GrailsApplication
 import grails.core.GrailsDomainClass
 import grails.plugins.elasticsearch.util.IndexNamingUtils
-import grails.test.mixin.Mock
-import org.grails.core.DefaultGrailsDomainClass
+import grails.testing.gorm.DataTest
+import grails.testing.spring.AutowiredTest
+import org.grails.datastore.gorm.config.GrailsDomainClassMappingContext
 import spock.lang.Specification
 import test.Photo
 import test.upperCase.UpperCase
 
-@Mock([Photo, UpperCase])
-class SearchableClassMappingSpec extends Specification {
+class SearchableClassMappingSpec extends Specification implements DataTest, AutowiredTest {
+
+    Closure doWithSpring() {{ ->
+        mappingContext GrailsDomainClassMappingContext
+        domainReflectionService DomainReflectionService
+    }}
+
+    DomainReflectionService domainReflectionService
+
+    void setupSpec() {
+        mockDomains(Photo, UpperCase)
+    }
 
     def "indexing and querying index are calculated based on the index name"() {
         given:
@@ -18,10 +28,10 @@ class SearchableClassMappingSpec extends Specification {
         domainClass.getPackageName() >> packageName
 
         when:
-        SearchableClassMapping scm = new SearchableClassMapping(domainClass, [])
+        SearchableClassMapping scm = new SearchableClassMapping(grailsApplication, new DomainEntity(domainReflectionService, domainClass, null), [])
 
         then:
-        scm.indexName == packageName
+        scm.indexName == domainClass.packageName
         scm.queryingIndex == IndexNamingUtils.queryingIndexFor(packageName)
         scm.indexingIndex == IndexNamingUtils.indexingIndexFor(packageName)
         scm.queryingIndex != scm.indexingIndex
@@ -33,29 +43,38 @@ class SearchableClassMappingSpec extends Specification {
     }
 
     void testGetIndexName() throws Exception {
-        GrailsDomainClass dc = new DefaultGrailsDomainClass(Photo.class)
-        dc.grailsApplication = [:] as GrailsApplication
-        SearchableClassMapping mapping = new SearchableClassMapping(dc, null)
-        assert 'test' == mapping.getIndexName()
+        when:
+        def domainClass = Mock(GrailsDomainClass)
+        domainClass.getPackageName() >> "test"
+        SearchableClassMapping mapping = new SearchableClassMapping(grailsApplication, new DomainEntity(domainReflectionService, domainClass, null), null)
+
+        then:
+        'test' == mapping.getIndexName()
     }
 
     void testManuallyConfiguredIndexName() throws Exception {
-        GrailsDomainClass dc = new DefaultGrailsDomainClass(Photo.class)
-        dc.grailsApplication = [:] as GrailsApplication
-        config.elasticSearch.index.name = 'index-name'
-        SearchableClassMapping mapping = new SearchableClassMapping(dc, null)
-        assert 'index-name' == mapping.getIndexName()
+
+        when:
+        DomainEntity dc = domainReflectionService.getAbstractDomainEntity(Photo.class)
+        grailsApplication.config.elasticSearch.index.name = 'index-name'
+        SearchableClassMapping mapping = new SearchableClassMapping(grailsApplication, dc, null)
+
+        then:
+        'index-name' == mapping.getIndexName()
     }
 
     void testIndexNameIsLowercaseWhenPackageNameIsLowercase() throws Exception {
-        GrailsDomainClass dc = new DefaultGrailsDomainClass(UpperCase.class)
-        dc.grailsApplication = [:] as GrailsApplication
-        SearchableClassMapping mapping = new SearchableClassMapping(dc, null)
+        when:
+        def domainClass = Mock(GrailsDomainClass)
+        domainClass.getPackageName() >> "test.upperCase"
+        SearchableClassMapping mapping = new SearchableClassMapping(grailsApplication, new DomainEntity(domainReflectionService, domainClass, null), null)
         String indexName = mapping.getIndexName()
-        assert 'test.uppercase' == indexName
+
+        then:
+        'test.uppercase' == indexName
     }
 
     void cleanup() {
-        config.elasticSearch.index.name = null
+        grailsApplication.config.elasticSearch.index.name = null
     }
 }

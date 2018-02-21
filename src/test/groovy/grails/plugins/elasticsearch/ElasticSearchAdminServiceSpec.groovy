@@ -1,20 +1,19 @@
 package grails.plugins.elasticsearch
 
-import grails.test.mixin.TestFor
+import grails.testing.services.ServiceUnitTest
 import spock.lang.Specification
 import spock.lang.Unroll
 
 /**
  * Created by @marcos-carceles on 15/01/15.
  */
-@TestFor(ElasticSearchAdminService)
-class ElasticSearchAdminServiceSpec extends Specification {
+class ElasticSearchAdminServiceSpec extends Specification implements ServiceUnitTest<ElasticSearchAdminService> {
 
     @Unroll
     void "identifies the next index version correctly"() {
         given:
         indices = indices as Set
-        service.metaClass.getIndices = {-> indices}
+        service.metaClass.getIndices = { -> indices }
         expect:
         service.getNextVersion("my.app") == expectedNext
 
