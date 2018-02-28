@@ -85,8 +85,15 @@ class IndexRequestQueue {
 
     void addIndexRequest(instance, Serializable id) {
         synchronized (this) {
-            IndexEntityKey key = id == null ? indexEntityKeyFromInstance(instance) :
-                    new IndexEntityKey(id.toString(), instance.getClass())
+            IndexEntityKey key = null
+            if (id == null) {
+                key = indexEntityKeyFromInstance(instance)
+            } else {
+                Class<?> clazz = instance.getClass()
+                SearchableClassMapping scm = elasticSearchContextHolder.getMappingContextByType(clazz)
+                Assert.notNull(scm, "Class $clazz is not a searchable domain class.")
+                key = new IndexEntityKey(id.toString(), scm.domainClass.type)
+            }
             indexRequests.putIfAbsent(key, instance)
         }
     }
@@ -102,7 +109,7 @@ class IndexRequestQueue {
         SearchableClassMapping scm = elasticSearchContextHolder.getMappingContextByType(clazz)
         Assert.notNull(scm, "Class $clazz is not a searchable domain class.")
         def id = (InvokerHelper.invokeMethod(instance, 'getId', null)).toString()
-        new IndexEntityKey(id, clazz)
+        new IndexEntityKey(id, scm.domainClass.type)
     }
 
     XContentBuilder toJSON(instance) {
